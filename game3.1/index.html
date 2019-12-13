@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Tutorial Phaser</title>
+
+    <script src="phaser.min.js"></script>
+    
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            /*
+            display: block;
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            width: 800px;
+            */
+
+            width: 100% !important;
+            height: 100vh !important;
+            cursor: none;
+        }
+    </style>
+        
+    
+</head>
+ 
+    
+    
+    
+<body>
+
+
+    <script>
+    
+        var config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 300 },
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+    
+        var score = 0;
+        var scoreText;
+
+        var game = new Phaser.Game(config);
+        
+        var particles, emitter;
+        var PU_NewBomb;
+        var timeText;
+        
+        var tween;
+        var text;
+        
+       
+
+        
+
+        function preload ()
+        {
+            this.load.image('forest', 'assets/tutorial/background.png');
+            this.load.image('platform1', 'assets/tutorial/platform1.png');
+            this.load.image('platform2', 'assets/tutorial/platform2.png');
+            this.load.image('platform3', 'assets/tutorial/platform3.png');
+            this.load.image('banana', 'assets/tutorial/banana.png');
+            this.load.image('rock', 'assets/tutorial/rock.png');
+            this.load.image('sun', 'assets/tutorial/sol.png'); 
+            this.load.image('game', 'assets/tutorial/gameover.png');
+            this.load.spritesheet('dude', 'assets/tutorial/dude.png',
+                { frameWidth: 32, frameHeight: 48 }
+            );
+             this.load.image('star', 'assets/tutorial/star.png');
+        }
+
+        function create ()
+        {
+
+            
+
+            this.add.image(400, 300, 'forest');
+            this.add.image(350, 80, 'sun');
+        
+            
+            
+            platforms = this.physics.add.staticGroup();
+
+            platforms.create(400, 568, 'platform1').setScale(2).refreshBody();
+
+            platforms.create(600, 400, 'platform2');
+            platforms.create(50, 250, 'platform2');
+            platforms.create(750, 220, 'platform2');
+            platforms.create(10, 500, 'platform3');
+            
+           
+
+            player = this.physics.add.sprite(100, 400, 'dude');
+
+            player.setBounce(0.2);
+            player.setCollideWorldBounds(true);
+            this.physics.add.collider(player, platforms);
+
+            player.body.setGravityY(300);
+
+            this.anims.create({
+                key: 'left',
+                frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+                frameRate: 10,
+                repeat: -1
+            });
+
+            this.anims.create({
+                key: 'turn',
+                frames: [ { key: 'dude', frame: 4 } ],
+                frameRate: 20
+            });
+
+            this.anims.create({
+                key: 'right',
+                frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
+                frameRate: 10,
+                repeat: -1
+            });
+
+            stars = this.physics.add.group({
+                key: 'banana',
+                repeat: 11,
+                setXY: { x: 12, y: 0, stepX: 70 }
+            });
+
+            stars.children.iterate(function (child) {
+                child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+            });
+
+            this.physics.add.collider(stars, platforms);
+            //this.physics.add.collider(stars, player);
+            this.physics.add.overlap(player, stars, collectStar, null, this);
+
+            bombs = this.physics.add.group();
+
+            this.physics.add.collider(bombs, platforms);
+
+            this.physics.add.collider(player, bombs, hitBomb, null, this);
+
+            scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '20px', fill: '#000' });
+            
+             timeText = this.add.text(480,580);
+            
+             
+            lifeCount = Number(localStorage.getItem("lifeCount")) || 2;
+            
+            lifeText = this.add.text(640, 16, 'Vidas:' + lifeCount, { fontSize: '20px', fill: '#000'});
+            
+            
+             particles = this.add.particles('assets','rock');
+
+            emitter = particles.createEmitter({
+                lifespan: 1000,
+                speedX: { min: -10, max: 10},
+                speedY: { min: 0, max: 45 },
+                scale: { start: 0.8, end:  0.1 },
+                frameQuantity: 64,
+                blendMode: 'ADD'
+                
+                });
+            
+   text = this.add.text(240, 580, '0', { font: '16px Courier', fill: '#000' });
+
+   this.add.image(700, 560, 'star').setAlpha(0.5);
+
+    var arrow = this.add.image(100, 560, 'star');
+
+    tween = this.tweens.add({
+        targets: arrow,
+        x: 700,
+        ease: 'Linear',
+        duration: 20000 
+    });
+
+    this.input.on('pointerdown', function () {
+
+       tween.restart();
+
+   });
+            
+           
+        }
+        
+        
+
+        function update (time, delta)
+        {
+            cursors = this.input.keyboard.createCursorKeys();
+
+            if (cursors.left.isDown)
+            {
+                player.setVelocityX(-160);
+
+                player.anims.play('left', true);
+            }
+            else if (cursors.right.isDown)
+            {
+                player.setVelocityX(160);
+
+                player.anims.play('right', true);
+            }
+            else
+            {
+                player.setVelocityX(0);
+
+                player.anims.play('turn');
+            }
+
+            if (cursors.up.isDown && player.body.touching.down)
+            {
+                player.setVelocityY(-500);
+            }
+            
+            
+         //  if(lifeCount>0)
+        //  {
+               
+        //    timeText.setText('Tempo no Jogo: ' + Math.floor((time.toFixed(0)/1000))+'s');
+               
+        //   }
+             
+              
+            
+             if (lifeCount < 0) { 
+                
+                resetLevel();
+                resetBomb();
+                
+                lifeCount = 2; //reseta o contador de vida
+                lifeText.setText('Vidas: '+ lifeCount);
+                
+                score = 0; //reseta a pontuação
+                scoreText.setText('Pontuação: ' +score);
+            }
+            
+    if (tween.isPlaying())
+    {
+      text.setText('Progress: ' + tween.progress);
+   }
+    else
+    {
+       text.setText('Click to restart: ' + tween.state);
+    }
+            
+            
+        }
+
+        function collectStar (player, star)
+        {
+            star.disableBody(true, true);
+
+            score += 10;
+            scoreText.setText('Score: ' + score);  
+
+            //if (stars.countActive(true) === 0)
+            //{
+                
+
+                var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+                var bomb = bombs.create(x, 16, 'rock');
+                bomb.setBounce(1);
+                bomb.setCollideWorldBounds(true);
+                bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+
+            //} 
+
+            if (stars.countActive(true) === 0)
+            {
+                stars.children.iterate(function (child) {
+                    child.enableBody(true, child.x, 0, true, true);
+                });
+            }
+            
+        }
+
+        function hitBomb (player, bomb)
+        {
+            this.scene.pause();
+
+            player.setTint('#0xff0000');
+
+            player.anims.play('turn');
+
+            gameOver = true;
+            localStorage.setItem("lifeCount", lifeCount - 1);
+            
+            if(localStorage.getItem("lifeCount") <= 0){
+                 this.add.image(500, 350, 'game');
+                
+            }else{
+                location.reload();
+            }
+        }
+        
+        
+    
+    </script>
+    
+</body>
+</html>
